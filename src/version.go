@@ -5,12 +5,21 @@ import (
 	"git.andinfinity.de/gitea-release-drafter/src/config"
 	"github.com/Masterminds/semver"
 	"golang.org/x/exp/slices"
+	"os"
 )
 
 // ResolveVersion determines the next version to be used for a release depending on the labels used in the pull requests merged after the last release.
 func ResolveVersion(cfg *config.RepoConfig, last *gitea.Release, changelog *Changelog) (*semver.Version, error) {
 	// determine next version
 	var nextVersion semver.Version
+	if version := os.Getenv("RELEASE_VERSION"); version != "" {
+		ver, err := semver.NewVersion(version)
+		if err != nil {
+			return nil, err
+		}
+		nextVersion = *ver
+		return &nextVersion, nil
+	}
 
 	// no prior release, starting with "v0.1.0"
 	if last == nil {
