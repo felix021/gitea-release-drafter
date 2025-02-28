@@ -3,6 +3,8 @@ package src
 import (
 	"code.gitea.io/sdk/gitea"
 	"github.com/sethvargo/go-githubactions"
+	"regexp"
+	"strings"
 )
 
 type Changelog map[string][]*gitea.PullRequest
@@ -35,11 +37,37 @@ func GenerateChangelog(c *gitea.Client, owner string, repo string, lastRelease *
 				}
 
 				if len(pr.Labels) == 0 {
-					githubactions.Warningf("PR #%d doesn't have any labels", pr.ID)
+					githubactions.Warningf("PR #%d doesn't have any labels, guess one", pr.ID)
+					label := readLabelFromTitle(pr.Title)
+					changelogByLabels[label] = append(changelogByLabels[label], pr)
 				}
 			}
 		}
 	}
 
 	return &changelogByLabels, nil
+}
+
+// if title is formatted like "label: xxx" or "[label] xxx" we should return "label" otherwise "(uncategorized)"
+func readLabelFromTitle(title string) string {
+	title = strings.TrimSpace(title)
+	// Define the regex pattern to match "label: xxx" or "[label] xxx"
+	pattern := `^(([^]]+):|\[([^]]+)\])`
+
+	// Compile the regex
+	re := regexp.MustCompile(pattern)
+
+	// Find the matches
+	matches := re.FindStringSubmatch(title)
+
+	// If matches are found, return the label
+	if len(matches) > 2 {
+		if matches[2] != "" {
+			return matches[2]
+		}
+		return matches[3]
+	}
+
+	// If no matches
+	return "(uncategorized)"
 }
